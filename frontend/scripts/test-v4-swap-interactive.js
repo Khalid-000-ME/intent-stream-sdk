@@ -339,8 +339,8 @@ async function main() {
         const key = {
             currency0: isUSDC0 ? USDC_ADDR : WETH_ADDR,
             currency1: isUSDC0 ? WETH_ADDR : USDC_ADDR,
-            fee: 500, // UPDATED to matched deployed pool
-            tickSpacing: 10, // UPDATED to matched deployed pool
+            fee: 3000,
+            tickSpacing: 60,
             hooks: ethers.ZeroAddress
         };
 
@@ -378,8 +378,8 @@ async function main() {
         const key = {
             currency0: isUSDC0 ? USDC_ADDR : WETH_ADDR,
             currency1: isUSDC0 ? WETH_ADDR : USDC_ADDR,
-            fee: 500,
-            tickSpacing: 10,
+            fee: 3000,
+            tickSpacing: 60,
             hooks: ethers.ZeroAddress
         };
 
