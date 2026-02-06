@@ -65,8 +65,8 @@ export async function POST(request: NextRequest) {
         const key = {
             currency0: token0,
             currency1: token1,
-            fee: 500,
-            tickSpacing: 10,
+            fee: 3000,
+            tickSpacing: 60,
             hooks: ethers.ZeroAddress
         };
 
@@ -94,12 +94,13 @@ export async function POST(request: NextRequest) {
         const balanceBefore = await poolManager.balanceOf(wallet.address, toAddr);
 
         // Execute swap
+        // In V4: zeroForOne = true means token0 -> token1
         const params = {
             zeroForOne: isFromToken0,
             amountSpecified: -amountIn, // Negative for exact input
             sqrtPriceLimitX96: isFromToken0 ?
-                (MIN_SQRT_RATIO + BigInt(10)) :
-                (MAX_SQRT_RATIO - BigInt(10))
+                (MIN_SQRT_RATIO + BigInt(100)) :
+                (MAX_SQRT_RATIO - BigInt(100))
         };
 
         console.log(`[V4 Swap] Executing swap transaction...`);
