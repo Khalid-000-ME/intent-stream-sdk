@@ -200,6 +200,11 @@ export default function FinalStreamPage() {
         addLog(`${idPrefix}:    Tx: ${data.txHash}`);
         addLog(`${idPrefix}:    Output: ${data.outputAmount} ${data.outputToken} (ERC-6909)`);
 
+        // Automatically redeem the output claim to ERC-20
+        try {
+            await redeemToken(intent.toToken);
+        } catch (ignore) { }
+
         fetchBalances();
         return data;
     };

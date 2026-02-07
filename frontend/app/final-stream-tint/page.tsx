@@ -125,7 +125,7 @@ export default function FinalStreamTintPage() {
         setStep('processing');
         setError(null);
         setLogs([]);
-        addLog('🚀 Starting TINT Protocol Lifecycle...');
+        addLog(`🚀 Starting TINT Protocol Lifecycle on ${selectedNetwork.toUpperCase()}...`);
         executeIntents();
     };
 
@@ -140,7 +140,7 @@ export default function FinalStreamTintPage() {
                 const authRes = await fetch('/api/yellow/auth', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ ...intent, userAddress: account })
+                    body: JSON.stringify({ ...intent, userAddress: account, network: selectedNetwork })
                 });
                 const authData = await authRes.json();
                 if (!authData.success) throw new Error(authData.error);
@@ -181,7 +181,7 @@ export default function FinalStreamTintPage() {
                         amount,
                         commitment: commitment.toString(),
                         randomness: randomness.toString(),
-                        network: 'base'
+                        network: selectedNetwork
                     })
                 });
                 const data = await res.json();
@@ -200,7 +200,7 @@ export default function FinalStreamTintPage() {
                 const redeemRes = await fetch('/api/v4/redeem', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ token: intent.toToken, amount: 'all' })
+                    body: JSON.stringify({ token: intent.toToken, amount: 'all', network: selectedNetwork })
                 });
                 const redeemData = await redeemRes.json();
                 if (redeemData.success) addLog(`✅ Redeemed ${redeemData.redeemedAmount} ${intent.toToken} to Wallet`);
@@ -254,17 +254,33 @@ export default function FinalStreamTintPage() {
                     </div>
                 </div>
 
+                {/* Network Selector */}
+                <div className="flex gap-2 mb-6">
+                    {(['base', 'arbitrum', 'ethereum'] as const).map((net) => (
+                        <button
+                            key={net}
+                            onClick={() => setSelectedNetwork(net)}
+                            className={`px-4 py-2 rounded-full text-xs font-black uppercase transition-all border ${selectedNetwork === net
+                                    ? 'bg-cyan-500 text-black border-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.4)]'
+                                    : 'bg-gray-900/40 text-gray-500 border-gray-800 hover:border-gray-600'
+                                }`}
+                        >
+                            {net} sepolia
+                        </button>
+                    ))}
+                </div>
+
                 {/* Balances */}
                 <div className="bg-gray-900/40 border border-gray-800 p-6 rounded-3xl mb-8 flex justify-between items-center backdrop-blur-md">
                     <div className="space-y-1">
-                        <div className="text-[10px] text-gray-500 uppercase font-bold tracking-widest text-cyan-400">Wallet Balance [Base Sepolia]</div>
+                        <div className="text-[10px] text-gray-500 uppercase font-bold tracking-widest text-cyan-400">Wallet Balance [{selectedNetwork.toUpperCase()} SEPOLIA]</div>
                         <div className="text-2xl font-mono text-white">
-                            {balances ? `${Number(balances.balances.weth).toFixed(6)} WETH | ${balances.balances.usdc} USDC` : 'Loading...'}
+                            {balances && balances.balances ? `${Number(balances.balances.weth).toFixed(6)} WETH | ${Number(balances.balances.usdc).toFixed(2)} USDC` : 'Loading...'}
                         </div>
                     </div>
                     <div className="text-right">
                         <div className="text-[10px] text-gray-500 uppercase font-bold">Protocol Node</div>
-                        <div className="text-sm font-mono text-cyan-400">TINT-V1-BETA</div>
+                        <div className="text-sm font-mono text-cyan-400">TINT-V1-{selectedNetwork.toUpperCase()}</div>
                     </div>
                 </div>
 

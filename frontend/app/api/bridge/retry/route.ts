@@ -9,53 +9,63 @@ export async function POST(request: NextRequest) {
         const { bridgeResult } = await request.json();
 
         if (!MAIN_WALLET_PRIVATE_KEY) {
+            console.error("[Server Bridge Retry] Error: MAIN_WALLET_PRIVATE_KEY is not set");
             return NextResponse.json({ error: 'Server wallet not configured' }, { status: 500 });
         }
 
-        if (!bridgeResult || !bridgeResult.source || !bridgeResult.destination) {
-            return NextResponse.json({ error: 'Invalid bridge result' }, { status: 400 });
+        if (!bridgeResult) {
+            return NextResponse.json({ error: 'Missing bridgeResult' }, { status: 400 });
         }
 
-        // Ensure proper private key format
         const pk = MAIN_WALLET_PRIVATE_KEY.startsWith('0x')
             ? MAIN_WALLET_PRIVATE_KEY as `0x${string}`
             : `0x${MAIN_WALLET_PRIVATE_KEY}` as `0x${string}`;
 
-        const fromChain = bridgeResult.source.chain.chain; // e.g., "Arc_Testnet"
-        const toChain = bridgeResult.destination.chain.chain; // e.g., "Base_Sepolia"
+        const sourceChain = bridgeResult.source?.chain?.chain || "unknown";
+        const destChain = bridgeResult.destination?.chain?.chain || "unknown";
 
-        console.log(`[Server Bridge Retry] Retrying failed bridge from ${fromChain} to ${toChain}`);
+        console.log(`[RECOVERY] Initiating server-side protocol for ${sourceChain} -> ${destChain}`);
+        console.log(`[RECOVERY] Client-side failure detected in steps:`,
+            bridgeResult.steps?.filter((s: any) => s.state === 'error').map((s: any) => s.name)
+        );
 
-        // Create Adapters
         const adapter = createViemAdapterFromPrivateKey({ privateKey: pk });
-
         const kit = new BridgeKit();
 
-        // Retry the bridge operation
+        // Perform the recovery (retry)
         const result = await kit.retry(bridgeResult, {
             from: adapter,
             to: adapter
         });
 
-        console.log(`[Server Bridge Retry] Success:`, result);
+        console.log(`[RECOVERY] Final State: ${result.state}`);
 
-        // Helper to serialize BigInt
-        const replacer = (key: string, value: any) =>
-            typeof value === "bigint" ? value.toString() : value;
+        const mintStep = result.steps?.find((s: any) => s.name === 'mint');
 
-        const serializedDetails = JSON.parse(JSON.stringify(result, replacer));
+        if (result.state === 'success' || (mintStep && mintStep.state === 'success')) {
+            console.log(`[RECOVERY] ✅ SUCCESS. Mint TX: ${mintStep?.txHash}`);
 
-        return NextResponse.json({
-            success: true,
-            txHash: result.steps?.find(s => s.name === 'mint')?.txHash || 'pending',
-            details: serializedDetails
-        });
+            return NextResponse.json({
+                success: true,
+                txHash: mintStep?.txHash,
+                state: result.state
+            });
+        } else {
+            const errorMsg = (mintStep as any)?.errorMessage || "Unknown retry error";
+            console.error(`[RECOVERY] ❌ FAILED: ${errorMsg}`);
+
+            return NextResponse.json({
+                success: false,
+                error: errorMsg,
+                result: result
+            }, { status: 500 });
+        }
 
     } catch (e: any) {
-        console.error('[Server Bridge Retry] Error:', e);
+        console.error('[RECOVERY] Critical Exception:', e);
         return NextResponse.json({
             success: false,
-            error: e.message || 'Bridge retry failed'
+            error: e.message || 'Bridge recovery exception'
         }, { status: 500 });
     }
 }

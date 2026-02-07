@@ -8,30 +8,35 @@ export const CHAINS: any = {
     arbitrum: {
         chain: arbitrumSepolia,
         rpc: 'https://sepolia-rollup.arbitrum.io/rpc',
-        name: 'Arbitrum Sepolia'
+        name: 'Arbitrum Sepolia',
+        fee: 200
     },
     ethereum: {
         chain: sepolia,
-        rpc: 'https://ethereum-sepolia-rpc.publicnode.com',
-        name: 'Ethereum Sepolia'
+        rpc: 'https://1rpc.io/sepolia',
+        name: 'Ethereum Sepolia',
+        fee: 200
     },
     base: {
         chain: baseSepolia,
         rpc: 'https://sepolia.base.org',
-        name: 'Base Sepolia'
+        name: 'Base Sepolia',
+        fee: 200
     }
 };
 
 export const CONTRACTS: any = {
     ethereum: {
-        router: '0x33702CB2232aF0284D67FF4cF01eC39B2a1d7031',
-        usdc: '0x888303972e735256422d35Cc599B2144DA833762', // Sepolia USDC (Real/Fresh Mock)
-        weth: '0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14'  // Sepolia WETH (Real)
+        router: '0x6127b25A12AB31dF2B58Fe9DfFCba595AB927eA3',
+        poolManager: '0xf448192241A9BBECd36371CD1f446de81A5399d2',
+        usdc: '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238',
+        weth: '0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14'
     },
     arbitrum: {
-        router: '0xb869BcB35787D78Da1138F8a75CF76F935f64496',
-        usdc: '0xfA7BfA4800D37B81E74FA5B05b2EF6A9FC116733', // Arb Mock USDC
-        weth: '0x5B4b4D8fBDbBf37b6B156e80024781861A25219A'  // Arb Mock WETH
+        router: '0x87bD55Ea0505005799a28D34B5Ca17f4c8d24301',
+        poolManager: '0x4e650C85801e9dC44313669b491d20DB864a5451',
+        usdc: '0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d',
+        weth: '0x802CC0F559eBc79DA798bf3F3baB44141a1a06Ed'
     },
     base: {
         router: '0x8C85937cB4EFe36F6Df3dc4632B0b010afB440A0', // New LiquidityManager with Redeem

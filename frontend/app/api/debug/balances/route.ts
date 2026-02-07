@@ -3,14 +3,15 @@ import { NextResponse } from 'next/server';
 import { ethers } from 'ethers';
 import { MAIN_WALLET_PRIVATE_KEY, CONTRACTS, CHAINS } from '@/lib/config';
 
-export async function GET() {
+export async function GET(req: any) {
     try {
-        const network = 'base'; // Force Base Sepolia for V4
+        const { searchParams } = new URL(req.url);
+        const network = searchParams.get('network') || 'base';
         const chainConfig = CHAINS[network];
         const contracts = CONTRACTS[network];
 
         if (!chainConfig || !contracts) {
-            return NextResponse.json({ error: 'Base Sepolia config missing' }, { status: 500 });
+            return NextResponse.json({ error: `${network} config missing` }, { status: 500 });
         }
 
         const provider = new ethers.JsonRpcProvider(chainConfig.rpc);

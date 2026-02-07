@@ -17,6 +17,8 @@ export function Navbar() {
                     <NavLink href="/dashboard">Dashboard</NavLink>
                     <NavLink href="/swapping">Swap</NavLink>
                     <NavLink href="/bridging">Bridge</NavLink>
+                    <NavLink href="/tint">TINT Demo</NavLink>
+                    <NavLink href="/final-stream-tint">TINT Stream</NavLink>
                     <NavLink href="/intents">History</NavLink>
                 </div>
 

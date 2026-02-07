@@ -157,7 +157,7 @@ async function main() {
         const key = {
             currency0: isUSDC0 ? USDC_ADDR : WETH_ADDR,
             currency1: isUSDC0 ? WETH_ADDR : USDC_ADDR,
-            fee: 3000,
+            fee: 200,
             tickSpacing: 60,
             hooks: ethers.ZeroAddress
         };
@@ -339,7 +339,7 @@ async function main() {
         const key = {
             currency0: isUSDC0 ? USDC_ADDR : WETH_ADDR,
             currency1: isUSDC0 ? WETH_ADDR : USDC_ADDR,
-            fee: 3000,
+            fee: 200,
             tickSpacing: 60,
             hooks: ethers.ZeroAddress
         };
@@ -378,7 +378,7 @@ async function main() {
         const key = {
             currency0: isUSDC0 ? USDC_ADDR : WETH_ADDR,
             currency1: isUSDC0 ? WETH_ADDR : USDC_ADDR,
-            fee: 3000,
+            fee: 200,
             tickSpacing: 60,
             hooks: ethers.ZeroAddress
         };

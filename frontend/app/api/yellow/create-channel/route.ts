@@ -100,6 +100,17 @@ export async function POST(request: NextRequest) {
                                 clearTimeout(timeout);
                                 ws.off('message', handler);
                                 resolve(response.res[2]);
+                            } else if (response.res && response.res[1] === 'error') {
+                                const errMsg = response.res[2]?.error || '';
+                                if (errMsg.includes('an open channel with broker already exists')) {
+                                    const match = errMsg.match(/0x[a-fA-F0-9]{64}/);
+                                    if (match) {
+                                        console.log(`[${intentId}] Recovered existing channel ID from error: ${match[0]}`);
+                                        clearTimeout(timeout);
+                                        ws.off('message', handler);
+                                        resolve({ channel_id: match[0], recover: true });
+                                    }
+                                }
                             }
                         } catch (e) {
                             console.error(`[${intentId}] WS Parse Error during channel creation:`, e);
@@ -113,37 +124,41 @@ export async function POST(request: NextRequest) {
                 const channelData = await channelPromise;
                 channelId = channelData.channel_id;
 
-                // Transform state data for SDK
-                const unsignedInitialState = {
-                    intent: channelData.state.intent,
-                    version: BigInt(channelData.state.version),
-                    data: channelData.state.state_data,
-                    allocations: channelData.state.allocations.map((a: any) => ({
-                        destination: a.destination,
-                        token: a.token,
-                        amount: BigInt(a.amount),
-                    })),
-                };
+                if (!channelData.recover) {
+                    // Transform state data for SDK
+                    const unsignedInitialState = {
+                        intent: channelData.state.intent,
+                        version: BigInt(channelData.state.version),
+                        data: channelData.state.state_data,
+                        allocations: channelData.state.allocations.map((a: any) => ({
+                            destination: a.destination,
+                            token: a.token,
+                            amount: BigInt(a.amount),
+                        })),
+                    };
 
-                // Submit channel creation to blockchain
-                updateIntentStatus(intentId, 'channel_creating', 'Submitting channel to blockchain...');
-                const createResult = await client.createChannel({
-                    channel: {
-                        ...channelData.channel,
-                        id: channelId
-                    },
-                    unsignedInitialState,
-                    serverSignature: channelData.server_signature,
-                });
+                    // Submit channel creation to blockchain
+                    updateIntentStatus(intentId, 'channel_creating', 'Submitting channel to blockchain...');
+                    const createResult = await client.createChannel({
+                        channel: {
+                            ...channelData.channel,
+                            id: channelId
+                        },
+                        unsignedInitialState,
+                        serverSignature: channelData.server_signature,
+                    });
 
-                // Get transaction hash
-                const txHash = typeof createResult === 'string' ? createResult : createResult.txHash;
+                    // Get transaction hash
+                    const txHash = typeof createResult === 'string' ? createResult : createResult.txHash;
 
-                // Wait for transaction confirmation
-                updateIntentStatus(intentId, 'channel_creating', 'Waiting for transaction confirmation...');
-                await publicClient.waitForTransactionReceipt({ hash: txHash });
+                    // Wait for transaction confirmation
+                    updateIntentStatus(intentId, 'channel_creating', 'Waiting for transaction confirmation...');
+                    await publicClient.waitForTransactionReceipt({ hash: txHash });
 
-                updateIntentStatus(intentId, 'channel_created', `Channel created: ${channelId.substring(0, 10)}...`);
+                    updateIntentStatus(intentId, 'channel_created', `Channel created (On-Chain): ${channelId.substring(0, 10)}...`);
+                } else {
+                    updateIntentStatus(intentId, 'channel_created', `Channel recovered (Existing): ${channelId.substring(0, 10)}...`);
+                }
             }
         }
 
