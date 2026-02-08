@@ -39,3 +39,5 @@ web3/uniswap/broadcast/
 tee-network/node_modules/
 
 protocol-flow.svg
+*.md
+!README.md
