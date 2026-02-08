@@ -9,7 +9,7 @@ export function Navbar() {
                 {/* Logo */}
                 <Link href="/" className="flex items-center gap-3 group">
                     <div className="w-8 h-8 bg-yellow-400 group-hover:rotate-180 transition-transform duration-500" />
-                    <span className="font-mono font-bold text-xl tracking-tighter">INTENT<span className="text-yellow-400">STREAM</span></span>
+                    <span className="font-mono font-bold text-xl tracking-tighter">TINT<span className="text-yellow-400">STREAM</span></span>
                 </Link>
 
                 {/* Links */}
