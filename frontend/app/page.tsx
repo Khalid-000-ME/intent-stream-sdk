@@ -11,8 +11,24 @@ export default function LandingPage() {
 
   const installCmd = "npm install tint-protocol-ai-sdk ethers @google/generative-ai";
 
+  const snippet = `import { TintClient } from 'tint-protocol-ai-sdk';
+
+const tint = new TintClient({
+  privateKey: process.env.PRIVATE_KEY,
+  geminiKey: process.env.GEMINI_API_KEY,
+  rpcUrl: 'https://sepolia.base.org'
+});
+
+// Execute Natural Language Intent
+const result = await tint.processNaturalLanguage(
+  "Swap 100 USDC to WETH on Base"
+);
+
+console.log(\`Tx Hash: \${result.txHash}\`);`;
+
   const handleCopy = () => {
-    navigator.clipboard.writeText(installCmd);
+    const text = activeTab === 'install' ? installCmd : snippet;
+    navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -79,23 +95,21 @@ export default function LandingPage() {
               </div>
             </div>
 
-            {activeTab === 'install' && (
-              <button
-                onClick={handleCopy}
-                className="text-gray-400 hover:text-white transition-colors bg-white/5 hover:bg-white/10 px-3 py-1 rounded text-xs font-mono flex items-center gap-2"
-              >
-                {copied ? (
-                  <>
-                    <span className="text-green-400">✓</span> Copied
-                  </>
-                ) : (
-                  <>
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
-                    Copy
-                  </>
-                )}
-              </button>
-            )}
+            <button
+              onClick={handleCopy}
+              className="text-gray-400 hover:text-white transition-colors bg-white/5 hover:bg-white/10 px-3 py-1 rounded text-xs font-mono flex items-center gap-2"
+            >
+              {copied ? (
+                <>
+                  <span className="text-green-400">✓</span> Copied
+                </>
+              ) : (
+                <>
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                  Copy
+                </>
+              )}
+            </button>
           </div>
 
           <div className="p-6 font-mono text-sm overflow-x-auto bg-[#050505]">
@@ -106,22 +120,7 @@ export default function LandingPage() {
               </div>
             ) : (
               <pre className="text-gray-300 pointer-events-none select-none">
-                <code>
-                  {`import { TintClient } from 'tint-protocol-ai-sdk';
-
-const tint = new TintClient({
-  privateKey: process.env.PRIVATE_KEY,
-  geminiKey: process.env.GEMINI_API_KEY,
-  rpcUrl: 'https://sepolia.base.org'
-});
-
-// Execute Natural Language Intent
-const result = await tint.processNaturalLanguage(
-  "Swap 100 USDC to WETH on Base"
-);
-
-console.log(\`Tx Hash: \${result.txHash}\`);`}
-                </code>
+                <code>{snippet}</code>
               </pre>
             )}
           </div>
