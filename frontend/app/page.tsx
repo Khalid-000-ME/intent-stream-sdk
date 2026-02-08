@@ -7,6 +7,15 @@ import { Navbar } from '@/components/Navbar';
 
 export default function LandingPage() {
   const [activeTab, setActiveTab] = useState<'install' | 'usage'>('install');
+  const [copied, setCopied] = useState(false);
+
+  const installCmd = "npm install tint-protocol-ai-sdk ethers @google/generative-ai";
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(installCmd);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   return (
     <div className="min-h-screen bg-[#050505] text-white font-sans selection:bg-cyan-500/30">
@@ -32,45 +41,68 @@ export default function LandingPage() {
 
         <div className="flex flex-wrap justify-center gap-6 mb-20">
           <Link href="/final-stream-uniswap">
-            <Button variant="primary" className="text-lg px-8 py-6 h-auto shadow-[0_0_30px_-5px_rgba(6,182,212,0.4)]">
+            {/* Explicitly setting text-white and bg-cyan-500 to override any default component styles */}
+            <button className="bg-cyan-500 hover:bg-cyan-400 text-black font-bold text-lg px-8 py-4 rounded-xl shadow-[0_0_30px_-5px_rgba(6,182,212,0.4)] transition-all transform hover:scale-105">
               Launch Agent Demo
-            </Button>
+            </button>
           </Link>
           <a href="https://www.npmjs.com/package/tint-protocol-ai-sdk" target="_blank" rel="noopener noreferrer">
-            <Button variant="secondary" className="text-lg px-8 py-6 h-auto bg-gray-900 border-gray-800 hover:bg-gray-800">
+            {/* Explicitly setting text-white and bg-gray-900 */}
+            <button className="bg-gray-900 hover:bg-gray-800 text-white border border-gray-700 font-bold text-lg px-8 py-4 rounded-xl transition-all">
               View on NPM
-            </Button>
+            </button>
           </a>
         </div>
 
         {/* Code Preview */}
-        <div className="w-full max-w-4xl bg-[#0a0a0a] border border-gray-800 rounded-3xl overflow-hidden shadow-2xl text-left">
-          <div className="flex items-center gap-4 px-6 py-4 border-b border-gray-800 bg-gray-900/50">
-            <div className="flex gap-2">
-              <div className="w-3 h-3 rounded-full bg-red-500/20 box-content border border-red-500/30" />
-              <div className="w-3 h-3 rounded-full bg-yellow-500/20 box-content border border-yellow-500/30" />
-              <div className="w-3 h-3 rounded-full bg-green-500/20 box-content border border-green-500/30" />
+        <div className="w-full max-w-4xl bg-[#0a0a0a] border border-gray-800 rounded-3xl overflow-hidden shadow-2xl text-left relative group">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-800 bg-gray-900/50">
+            <div className="flex items-center gap-4">
+              <div className="flex gap-2">
+                <div className="w-3 h-3 rounded-full bg-red-500/20 box-content border border-red-500/30" />
+                <div className="w-3 h-3 rounded-full bg-yellow-500/20 box-content border border-yellow-500/30" />
+                <div className="w-3 h-3 rounded-full bg-green-500/20 box-content border border-green-500/30" />
+              </div>
+              <div className="flex gap-4 ml-6 font-mono text-sm">
+                <button
+                  onClick={() => setActiveTab('install')}
+                  className={`transition-colors ${activeTab === 'install' ? 'text-cyan-400 font-bold border-b border-cyan-400' : 'text-gray-500 hover:text-gray-300'}`}
+                >
+                  install
+                </button>
+                <button
+                  onClick={() => setActiveTab('usage')}
+                  className={`transition-colors ${activeTab === 'usage' ? 'text-cyan-400 font-bold border-b border-cyan-400' : 'text-gray-500 hover:text-gray-300'}`}
+                >
+                  quick-start.ts
+                </button>
+              </div>
             </div>
-            <div className="flex gap-4 ml-6 font-mono text-sm">
+
+            {activeTab === 'install' && (
               <button
-                onClick={() => setActiveTab('install')}
-                className={`transition-colors ${activeTab === 'install' ? 'text-cyan-400 font-bold' : 'text-gray-500 hover:text-gray-300'}`}
+                onClick={handleCopy}
+                className="text-gray-400 hover:text-white transition-colors bg-white/5 hover:bg-white/10 px-3 py-1 rounded text-xs font-mono flex items-center gap-2"
               >
-                install
+                {copied ? (
+                  <>
+                    <span className="text-green-400">✓</span> Copied
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                    Copy
+                  </>
+                )}
               </button>
-              <button
-                onClick={() => setActiveTab('usage')}
-                className={`transition-colors ${activeTab === 'usage' ? 'text-cyan-400 font-bold' : 'text-gray-500 hover:text-gray-300'}`}
-              >
-                quick-start.ts
-              </button>
-            </div>
+            )}
           </div>
 
-          <div className="p-6 font-mono text-sm overflow-x-auto">
+          <div className="p-6 font-mono text-sm overflow-x-auto bg-[#050505]">
             {activeTab === 'install' ? (
-              <div className="text-gray-300">
-                <span className="text-cyan-400">$</span> npm install tint-protocol-ai-sdk ethers @google/generative-ai
+              <div className="text-gray-300 flex items-center gap-3">
+                <span className="text-cyan-400 select-none">$</span>
+                <span className="flex-1">{installCmd}</span>
               </div>
             ) : (
               <pre className="text-gray-300 pointer-events-none select-none">
@@ -119,35 +151,6 @@ console.log(\`Tx Hash: \${result.txHash}\`);`}
         </div>
       </section>
 
-      {/* Setup Guide (Getting Started) */}
-      <section className="py-20 px-6 bg-gray-900/30 border-t border-gray-800">
-        <div className="max-w-4xl mx-auto">
-          <h2 className="text-3xl font-bold mb-12 text-center">Getting Started</h2>
-
-          <div className="space-y-8">
-            <Step
-              num="01"
-              title="Get API Keys"
-              desc={
-                <span>
-                  You'll need a <a href="https://aistudio.google.com/app/apikey" target="_blank" className="text-cyan-400 hover:underline">Gemini API Key</a> for the Agent and a wallet Private Key.
-                </span>
-              }
-            />
-            <Step
-              num="02"
-              title="Configure Agents"
-              desc="Set your GEMINI_API_KEY in the .env file to enable the specific AI parsing capabilities."
-            />
-            <Step
-              num="03"
-              title="Run Verification"
-              desc="Use the SDK to submit a test intent on Base Sepolia. The TINT Verifier will validate the ZK proof."
-            />
-          </div>
-        </div>
-      </section>
-
       {/* Footer */}
       <footer className="border-t border-gray-800 py-12 px-6 text-center text-gray-500 text-sm">
         <p>© 2026 TINT Protocol. Open Source MIT License.</p>
@@ -167,20 +170,6 @@ function FeatureCard({ icon, title, desc }: { icon: string, title: string, desc:
       <div className="text-4xl mb-4">{icon}</div>
       <h3 className="text-xl font-bold mb-3 text-white">{title}</h3>
       <p className="text-gray-400 leading-relaxed">{desc}</p>
-    </div>
-  );
-}
-
-function Step({ num, title, desc }: { num: string, title: string, desc: React.ReactNode }) {
-  return (
-    <div className="flex gap-6 items-start">
-      <div className="text-2xl font-black text-gray-800 bg-white/5 w-16 h-16 rounded-2xl flex items-center justify-center shrink-0">
-        {num}
-      </div>
-      <div>
-        <h3 className="text-xl font-bold text-white mb-2">{title}</h3>
-        <p className="text-gray-400 leading-relaxed">{desc}</p>
-      </div>
     </div>
   );
 }
