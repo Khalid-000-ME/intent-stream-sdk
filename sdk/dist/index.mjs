@@ -1,37 +1,7 @@
-"use strict";
-var __defProp = Object.defineProperty;
-var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
-var __getOwnPropNames = Object.getOwnPropertyNames;
-var __hasOwnProp = Object.prototype.hasOwnProperty;
-var __export = (target, all) => {
-  for (var name in all)
-    __defProp(target, name, { get: all[name], enumerable: true });
-};
-var __copyProps = (to, from, except, desc) => {
-  if (from && typeof from === "object" || typeof from === "function") {
-    for (let key of __getOwnPropNames(from))
-      if (!__hasOwnProp.call(to, key) && key !== except)
-        __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
-  }
-  return to;
-};
-var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
-
-// src/index.ts
-var index_exports = {};
-__export(index_exports, {
-  NettingEngine: () => NettingEngine,
-  PedersenCommitment: () => PedersenCommitment,
-  TintAgent: () => TintAgent,
-  TintClient: () => TintClient,
-  YellowAPIClient: () => YellowAPIClient
-});
-module.exports = __toCommonJS(index_exports);
-
 // src/crypto/commitments.ts
-var import_utils = require("@noble/hashes/utils");
-var import_sha3 = require("@noble/hashes/sha3");
-var import_utils2 = require("@noble/hashes/utils");
+import { randomBytes } from "@noble/hashes/utils";
+import { keccak_256 } from "@noble/hashes/sha3";
+import { bytesToHex } from "@noble/hashes/utils";
 var PedersenCommitment = class {
   /**
    * Create a simplified hash-based commitment for Solidity compatibility
@@ -39,7 +9,7 @@ var PedersenCommitment = class {
    * This is used for on-chain verification where EC operations are expensive
    */
   commitSimple(amount, randomness) {
-    const r = randomness || (0, import_utils.randomBytes)(32);
+    const r = randomness || randomBytes(32);
     const amountBytes = new Uint8Array(32);
     const amountBigInt = BigInt(amount);
     for (let i = 0; i < 32; i++) {
@@ -48,13 +18,13 @@ var PedersenCommitment = class {
     const combined = new Uint8Array(64);
     combined.set(amountBytes, 0);
     combined.set(r, 32);
-    const commitment = (0, import_sha3.keccak_256)(combined);
+    const commitment = keccak_256(combined);
     return {
       commitment,
-      commitmentHex: "0x" + (0, import_utils2.bytesToHex)(commitment),
+      commitmentHex: "0x" + bytesToHex(commitment),
       amount,
       randomness: r,
-      randomnessHex: "0x" + (0, import_utils2.bytesToHex)(r)
+      randomnessHex: "0x" + bytesToHex(r)
     };
   }
   /**
@@ -62,7 +32,7 @@ var PedersenCommitment = class {
    */
   verifySimple(commitment, amount, randomness) {
     const recomputed = this.commitSimple(amount, randomness);
-    return (0, import_utils2.bytesToHex)(commitment) === (0, import_utils2.bytesToHex)(recomputed.commitment);
+    return bytesToHex(commitment) === bytesToHex(recomputed.commitment);
   }
 };
 var NettingEngine = class {
@@ -96,11 +66,11 @@ var NettingEngine = class {
 };
 
 // src/network/yellow.ts
-var import_ethers = require("ethers");
+import { ethers } from "ethers";
 var YellowAPIClient = class {
   constructor(privateKey, rpcUrl, apiUrl = "http://localhost:3000/api") {
-    const provider = new import_ethers.ethers.JsonRpcProvider(rpcUrl);
-    this.wallet = new import_ethers.ethers.Wallet(privateKey, provider);
+    const provider = new ethers.JsonRpcProvider(rpcUrl);
+    this.wallet = new ethers.Wallet(privateKey, provider);
     this.baseUrl = apiUrl;
   }
   async authenticate() {
@@ -133,13 +103,13 @@ var YellowAPIClient = class {
 };
 
 // src/client/tint.ts
-var import_ethers2 = require("ethers");
+import { ethers as ethers2 } from "ethers";
 
 // src/agent/gemini.ts
-var import_generative_ai = require("@google/generative-ai");
+import { GoogleGenerativeAI } from "@google/generative-ai";
 var TintAgent = class {
   constructor(config) {
-    this.genai = new import_generative_ai.GoogleGenerativeAI(config.apiKey);
+    this.genai = new GoogleGenerativeAI(config.apiKey);
     this.model = this.genai.getGenerativeModel({
       model: config.model || "gemini-robotics-er-1.5-preview"
     });
@@ -274,8 +244,8 @@ var TintClient = class {
   constructor(config) {
     this.pendingIntents = [];
     this.config = config;
-    const provider = new import_ethers2.ethers.JsonRpcProvider(config.rpcUrl);
-    this.wallet = new import_ethers2.ethers.Wallet(config.privateKey, provider);
+    const provider = new ethers2.JsonRpcProvider(config.rpcUrl);
+    this.wallet = new ethers2.Wallet(config.privateKey, provider);
     this.pedersen = new PedersenCommitment();
     this.netting = new NettingEngine();
     this.yellow = new YellowAPIClient(config.privateKey, config.rpcUrl, config.backendUrl);
@@ -297,7 +267,7 @@ var TintClient = class {
   async createIntent(params) {
     let commitment;
     if (params.type === "SWAP") {
-      const amount = typeof params.amount === "string" ? import_ethers2.ethers.parseUnits(params.amount, 6) : import_ethers2.ethers.parseUnits(params.amount.toString(), 6);
+      const amount = typeof params.amount === "string" ? ethers2.parseUnits(params.amount, 6) : ethers2.parseUnits(params.amount.toString(), 6);
       commitment = this.pedersen.commitSimple(amount);
     }
     return { intent: params, commitment };
@@ -328,7 +298,7 @@ var TintClient = class {
     if (swapIntents.length > 0) {
       const sellAmounts = swapIntents.map((i) => {
         const amt = typeof i.intent.amount === "string" ? parseFloat(i.intent.amount) : i.intent.amount;
-        return import_ethers2.ethers.parseUnits(amt.toString(), 6);
+        return ethers2.parseUnits(amt.toString(), 6);
       });
       const netResult = this.netting.computeNetPosition(sellAmounts, []);
       const hookData = {
@@ -341,7 +311,7 @@ var TintClient = class {
         residual: netResult.residual.toString()
       };
       const firstIntent = swapIntents[0].intent;
-      const netAmount = parseFloat(import_ethers2.ethers.formatUnits(netResult.residual, 6));
+      const netAmount = parseFloat(ethers2.formatUnits(netResult.residual, 6));
       const response = await fetch(`${this.config.backendUrl}/uniswap/swap`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -439,11 +409,10 @@ var TintClient = class {
     return !!this.agent;
   }
 };
-// Annotate the CommonJS export names for ESM import in node:
-0 && (module.exports = {
+export {
   NettingEngine,
   PedersenCommitment,
   TintAgent,
   TintClient,
   YellowAPIClient
-});
+};

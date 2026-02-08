@@ -1,15 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { exec } from 'child_process';
-import path from 'path';
-import { promisify } from 'util';
+import { executeSwap } from '@/lib/swapService';
 import { ethers } from 'ethers';
 
-const execAsync = promisify(exec);
+// Simple queue to prevent nonce conflicts
+let swapQueue = Promise.resolve();
+const queueSwap = <T>(fn: () => Promise<T>): Promise<T> => {
+    const result = swapQueue.then(fn).catch(fn);
+    swapQueue = result.then(() => { }, () => { });
+    return result;
+};
 
 // Config
 const CONFIG = {
     base: {
-        rpc: "https://sepolia.base.org", // Use public or 1rpc if preferred
+        rpc: "https://sepolia.base.org",
         router: "0x3213d0d87bc3215dac5719db385aaf094b8c4a32",
         tokens: {
             USDC: "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
@@ -37,152 +41,51 @@ const CONFIG = {
     }
 };
 
-const PROJECT_ROOT = path.resolve(process.cwd(), '../web3/uniswap');
-const FORGE_CMD = process.env.FORGE_PATH || '/Users/khalid/.foundry/bin/forge';
-
 export async function POST(req: NextRequest) {
-    try {
-        const body = await req.json();
-        const { network, tokenIn, tokenOut, amount, recipient } = body;
-
-        console.log(`🦄 API: Swap Request on ${network}: ${amount} ${tokenIn} -> ${tokenOut}`);
-
-        const config = CONFIG[network as keyof typeof CONFIG];
-        if (!config) throw new Error("Invalid Network");
-
-        const addrIn = config.tokens[tokenIn as keyof typeof config.tokens];
-        const addrOut = config.tokens[tokenOut as keyof typeof config.tokens];
-
-        if (!addrIn || !addrOut) throw new Error(`Token not supported: ${tokenIn} -> ${tokenOut}`);
-
-        const decimals = tokenIn === 'USDC' ? 6 : 18;
-        const amountWei = ethers.parseUnits(amount.toString(), decimals).toString();
-
-        // Run Foundry Script
-        const env = {
-            ...process.env,
-            SWAP_TOKEN_IN: addrIn,
-            SWAP_TOKEN_OUT: addrOut,
-            SWAP_AMOUNT: amountWei,
-            SWAP_ROUTER: config.router,
-            SWAP_RECIPIENT: recipient,
-            FORCE_COLOR: 'false'
-        };
-
-        // Added --gas-estimate-multiplier 200 to help with Underpriced replacement txs
-        // Added --with-gas-price 50000000000 (50 gwei) to force high gas and avoid replacement underpriced errors
-        const cmd = `${FORGE_CMD} script script/Swap.s.sol --rpc-url ${config.rpc} --broadcast --legacy --json --gas-estimate-multiplier 200 --with-gas-price 50000000000`;
-
-        console.log("Executing:", cmd);
-        let stdout = "";
+    return queueSwap(async () => {
         try {
-            const result = await execAsync(cmd, { cwd: PROJECT_ROOT, env });
-            stdout = result.stdout;
-        } catch (execError: any) {
-            console.error("Exec Failed:", execError);
-            if (execError.stderr && execError.stderr.includes("Failed to send transaction")) {
-                console.error("Critical: Broadcast failed.");
-                throw new Error("Transaction Broadcast Failed: " + execError.stderr.split('\n')[0]);
-            }
-            if (execError.stdout) stdout = execError.stdout;
-            else throw execError;
+            const body = await req.json();
+            const { network, tokenIn, tokenOut, amount, recipient } = body;
+
+            console.log(`🦄 API: Swap Request on ${network}: ${amount} ${tokenIn} -> ${tokenOut}`);
+
+            const config = CONFIG[network as keyof typeof CONFIG];
+            if (!config) throw new Error("Invalid Network");
+
+            const addrIn = config.tokens[tokenIn as keyof typeof config.tokens];
+            const addrOut = config.tokens[tokenOut as keyof typeof config.tokens];
+
+            if (!addrIn || !addrOut) throw new Error(`Token not supported: ${tokenIn} -> ${tokenOut}`);
+
+            const privateKey = process.env.MAIN_WALLET_PRIVATE_KEY;
+            if (!privateKey) throw new Error("Server Misconfigured: Missing Main Wallet Private Key");
+
+            // Execute Swap using TypeScript Service (No Forge Dependency)
+            const result = await executeSwap({
+                rpcUrl: config.rpc,
+                privateKey: privateKey,
+                routerAddress: config.router,
+                tokenIn: addrIn,
+                tokenOut: addrOut,
+                amount: amount.toString(),
+                recipient: recipient
+            });
+
+            // Format Output
+            // Result.amountOut is in Wei (BigInt string)
+            const outDecimals = tokenOut === 'USDC' ? 6 : 18;
+            const formattedOut = ethers.formatUnits(result.amountOut || "0", outDecimals);
+
+            return NextResponse.json({
+                success: true,
+                txHash: result.txHash || "0x...",
+                amountOut: formattedOut,
+                rawOut: result.amountOut
+            });
+
+        } catch (e: any) {
+            console.error("Swap Failed:", e);
+            return NextResponse.json({ success: false, error: e.message || "Swap Execution Failed" }, { status: 500 });
         }
-
-        // Parse JSON output (Handle multiple JSON objects separated by newlines)
-        const lines = stdout.split('\n');
-        let logs: string[] = [];
-        let receipts: any[] = [];
-        let success = false;
-        let scriptSuccessFound = false;
-
-        for (const line of lines) {
-            if (!line.trim()) continue;
-            try {
-                // Find JSON object in line (sometimes mixed with text)
-                const jsonStart = line.indexOf('{');
-                const jsonEnd = line.lastIndexOf('}');
-                if (jsonStart !== -1 && jsonEnd !== -1) {
-                    const jsonStr = line.substring(jsonStart, jsonEnd + 1);
-                    const jsonObj = JSON.parse(jsonStr);
-
-                    // Check log entries
-                    if (jsonObj.logs) {
-                        logs = logs.concat(jsonObj.logs);
-                    }
-
-                    // Check receipts or tx status
-                    if (jsonObj.receipts) {
-                        receipts = receipts.concat(jsonObj.receipts);
-                    } else if (jsonObj.result?.receipts) {
-                        receipts = receipts.concat(jsonObj.result.receipts);
-                    } else if (jsonObj.tx_hash) {
-                        // Some outputs have top-level tx_hash
-                        receipts.push({ transactionHash: jsonObj.tx_hash });
-                    }
-
-                    // Check script success status
-                    if (jsonObj.success !== undefined) {
-                        success = jsonObj.success;
-                        scriptSuccessFound = true;
-                    }
-                }
-            } catch (e) {
-                // Ignore non-JSON lines
-            }
-        }
-
-        if (scriptSuccessFound && !success) {
-            // Check if receipts exist (broadcast might have succeeded despite script returning failure code?)
-            if (receipts.length === 0) {
-                throw new Error("Swap Script Failed (Script returned success: false)");
-            }
-        }
-
-        let amountOut = "0";
-        let txHash = "";
-
-        // Extract Logs for 'Transferred Output'
-        for (const log of logs) {
-            // Handle both string logs and structured logs if needed (but console.log is usually string)
-            if (typeof log === 'string' && log.startsWith("Transferred Output:")) {
-                amountOut = log.split(":")[1].trim();
-            }
-        }
-
-        // Extract Tx Hash
-        // Prioritize actual receipt list
-        if (receipts.length > 0) {
-            const valid = receipts.find(r => r.transactionHash && r.transactionHash.length === 66);
-            if (valid) txHash = valid.transactionHash;
-        }
-
-        // Fallback Tx Hash extraction from stdout text if JSON missing
-        // Be careful not to match random 32-byte hex strings. 
-        if (!txHash) {
-            const txMatch = stdout.match(/Transaction: (0x[a-fA-F0-9]{64})/);
-            if (txMatch) txHash = txMatch[1];
-        }
-
-        // Final fallback (Regex search for ANY 64-char hex, but filter for likely topics)
-        if (!txHash) {
-            // This fallback was catching event topics. Disabled or refined needed? 
-            // We'll leave it out to avoid False Positives as User complained about.
-            // If we have receipts, we rely on them.
-        }
-
-        // Format Output
-        const outDecimals = tokenOut === 'USDC' ? 6 : 18;
-        const formattedOut = ethers.formatUnits(amountOut, outDecimals);
-
-        return NextResponse.json({
-            success: true,
-            txHash: txHash || "0x...",
-            amountOut: formattedOut,
-            rawOut: amountOut
-        });
-
-    } catch (e: any) {
-        console.error("Swap Failed:", e);
-        return NextResponse.json({ success: false, error: e.message || "Swap Execution Failed" }, { status: 500 });
-    }
+    });
 }

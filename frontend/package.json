@@ -13,6 +13,8 @@
     "@circle-fin/bridge-kit": "^1.5.0",
     "@erc7824/nitrolite": "^0.5.3",
     "@google/generative-ai": "^0.24.1",
+    "@noble/curves": "^2.0.1",
+    "@noble/hashes": "^2.0.1",
     "@storknetwork/stork-evm-sdk": "^1.0.5",
     "@types/ws": "^8.18.1",
     "@uniswap/sdk-core": "^7.10.1",
