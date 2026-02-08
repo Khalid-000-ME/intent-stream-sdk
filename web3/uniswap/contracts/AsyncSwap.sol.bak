@@ -1,0 +1,36 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.19;
+
+import "forge-std/Test.sol";
+import {Deployers} from "v4-core/test/utils/Deployers.sol";
+// ...
+
+contract AsyncSwapTest is Test, Deployers {
+    // ...
+
+    function setUp() public {
+        // ... 
+    }
+
+    function test_asyncSwap() public {
+        assertEq(hook.beforeSwapCount(poolId), 0);
+
+        uint256 balance0Before = currency0.balanceOfSelf();
+        uint256 balance1Before = currency1.balanceOfSelf();
+
+        // Perform a test swap //
+        int256 amount = -1e18;
+        bool zeroForOne = true;
+        BalanceDelta swapDelta = swap(poolKey, zeroForOne, amount, ZERO_BYTES);
+        // ------------------- //
+
+        uint256 balance0After = currency0.balanceOfSelf();
+        uint256 balance1After = currency1.balanceOfSelf();
+
+        // user paid token0
+        assertEq(balance0Before - balance0After, 1e18);
+
+        // user did not recieve token1 (AsyncSwap)
+        assertEq(balance1Before, balance1After);
+    }
+}

@@ -100,6 +100,8 @@ export async function POST(request: NextRequest) {
                         break;
                     }
                 }
+                // Default to same chain if not bridged
+                if (!intentData.toChain) intentData.toChain = intentData.fromChain;
 
                 // Recipient
                 const addr = seg.match(/0x[a-fA-F0-9]{40}/);

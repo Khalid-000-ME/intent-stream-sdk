@@ -1,48 +1,95 @@
+const { ethers } = require("ethers");
+require("dotenv").config({ path: ".env.local" });
 
-const { ethers } = require('ethers');
-require('dotenv').config({ path: '../.env' });
+const NETWORKS = {
+    ethereum: {
+        rpc: 'https://1rpc.io/sepolia',
+        router: '0x72166B1ec9Da1233CEc8D742Abc9890608BA4097',
+        poolManager: '0xE03A1074c86CFeDd5C142C4F04F1a1536e203543',
+        usdc: '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238',
+        weth: '0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14'
+    },
+    arbitrum: {
+        rpc: 'https://sepolia-rollup.arbitrum.io/rpc',
+        router: '0x0C3B163c971e11e2308Fc3e1020787f2E21b280C',
+        poolManager: '0xFB3e0C6F74eB1a21CC1Da29aeC80D2Dfe6C9a317',
+        usdc: '0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d',
+        weth: '0x802CC0F559eBc79DA798bf3F3baB44141a1a06Ed'
+    },
+    base: {
+        rpc: 'https://sepolia.base.org',
+        router: '0xB079cab802838d5aB97f12dC1B8D369f439719B3',
+        poolManager: '0x05E73354cFDd6745C338b50BcFDfA3Aa6fA03408',
+        usdc: '0x036CbD53842c5426634e7929541eC2318f3dCF7e',
+        weth: '0x4200000000000000000000000000000000000006'
+    }
+};
 
-async function checkPool() {
-    const provider = new ethers.JsonRpcProvider('https://sepolia.base.org');
+const PM_ABI = [
+    "function getSlot0(bytes32 poolId) external view returns (uint160 sqrtPriceX96, int24 tick, uint24 protocolFee, uint24 lpFee)",
+    "function getLiquidity(bytes32 poolId) external view returns (uint128)"
+];
 
-    // Base Sepolia Addresses
-    const POOL_MANAGER = '0x1b832D5395A41446b508632466cf32c6C07D63c7';
-    const USDC = '0x036CbD53842c5426634e7929541eC2318f3dCF7e';
-    const WETH = '0x4200000000000000000000000000000000000006';
+async function main() {
+    const network = process.argv[2] || 'ethereum';
+    const config = NETWORKS[network];
 
-    const pm = new ethers.Contract(POOL_MANAGER, [
-        "function getSlot0(bytes32 id) view returns (uint160 sqrtPriceX96, int24 tick, uint16 protocolFee, uint24 lpFee)",
-        "function pools(bytes32 id) view returns (uint128 liquidity, uint24 fee, int24 tickSpacing, address hooks)"
-    ], provider);
+    if (!config) {
+        console.error("Usage: node check-pool-state.js <ethereum|arbitrum|base>");
+        process.exit(1);
+    }
 
-    // PoolKey
-    const token0 = USDC.toLowerCase() < WETH.toLowerCase() ? USDC : WETH;
-    const token1 = USDC.toLowerCase() < WETH.toLowerCase() ? WETH : USDC;
+    console.log(`\n🔍 Checking Pool State on ${network.toUpperCase()}`);
+    console.log(`   PoolManager: ${config.poolManager}`);
 
-    // Hash PoolId
-    const poolId = ethers.keccak256(ethers.AbiCoder.defaultAbiCoder().encode(
-        ["address", "address", "uint24", "int24", "address"],
-        [token0, token1, 3000, 60, ethers.ZeroAddress]
-    ));
+    const provider = new ethers.JsonRpcProvider(config.rpc);
+    const pm = new ethers.Contract(config.poolManager, PM_ABI, provider);
 
-    const [slot0, pool] = await Promise.all([
-        pm.getSlot0(poolId),
-        pm.pools(poolId)
-    ]);
+    const isUSDC0 = config.usdc.toLowerCase() < config.weth.toLowerCase();
+    const token0 = isUSDC0 ? config.usdc : config.weth;
+    const token1 = isUSDC0 ? config.weth : config.usdc;
 
-    console.log('Pool ID:', poolId);
-    console.log('Liquidity:', pool.liquidity.toString());
-    console.log('SqrtPriceX96:', slot0.sqrtPriceX96.toString());
-    console.log('Tick:', slot0.tick);
+    // Check multiple fee tiers
+    const feeTiers = [200, 500, 3000, 10000];
 
-    const p_raw = (Number(slot0.sqrtPriceX96) / 2 ** 96) ** 2;
-    console.log('P_raw:', p_raw);
+    for (const fee of feeTiers) {
+        const key = {
+            currency0: token0,
+            currency1: token1,
+            fee: fee,
+            tickSpacing: fee === 200 ? 60 : fee === 500 ? 10 : fee === 3000 ? 60 : 200,
+            hooks: ethers.ZeroAddress
+        };
 
-    // Price = Token1 / Token0
-    // Token0 = USDC (6), Token1 = WETH (18)
-    // Price in units = P_raw * 10^(6-18) = P_raw * 10^-12 WETH/USDC
-    // USDC per WETH = 1 / (P_raw * 10^-12) = 10^12 / P_raw
-    console.log('USDC per WETH:', 10 ** 12 / p_raw);
+        // Compute pool ID
+        const poolId = ethers.keccak256(
+            ethers.AbiCoder.defaultAbiCoder().encode(
+                ["address", "address", "uint24", "int24", "address"],
+                [key.currency0, key.currency1, key.fee, key.tickSpacing, key.hooks]
+            )
+        );
+
+        try {
+            const [sqrtPriceX96, tick] = await pm.getSlot0(poolId);
+            const liquidity = await pm.getLiquidity(poolId);
+
+            if (sqrtPriceX96 > 0n) {
+                console.log(`\n✅ Pool Found (Fee: ${fee})`);
+                console.log(`   Pool ID: ${poolId}`);
+                console.log(`   SqrtPriceX96: ${sqrtPriceX96}`);
+                console.log(`   Tick: ${tick}`);
+                console.log(`   Liquidity: ${liquidity}`);
+
+                if (liquidity === 0n) {
+                    console.log(`   ⚠️  WARNING: Pool initialized but has ZERO liquidity!`);
+                }
+            }
+        } catch (e) {
+            // Pool doesn't exist for this fee tier
+        }
+    }
+
+    console.log("\n");
 }
 
-checkPool();
+main().catch(console.error);

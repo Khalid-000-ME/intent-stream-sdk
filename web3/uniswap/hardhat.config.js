@@ -19,11 +19,15 @@ module.exports = {
     networks: {
         hardhat: {},
         arbitrumSepolia: {
-            url: "https://sepolia-rollup.arbitrum.io/rpc",
+            url: "https://arbitrum-sepolia.gateway.tenderly.co",
+            accounts: [PRIVATE_KEY]
+        },
+        baseSepolia: {
+            url: "https://sepolia.base.org",
             accounts: [PRIVATE_KEY]
         },
         sepolia: {
-            url: "https://ethereum-sepolia-rpc.publicnode.com",
+            url: "https://1rpc.io/sepolia",
             accounts: [PRIVATE_KEY],
             timeout: 60000 // 60 seconds
         }

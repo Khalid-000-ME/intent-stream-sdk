@@ -36,23 +36,24 @@ export default function FinalStreamTintPage() {
         logsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [logs]);
 
-    useEffect(() => {
-        fetchBalances();
-    }, [selectedNetwork]);
-
     const addLog = (msg: string) => {
         setLogs(p => [...p, `[${new Date().toLocaleTimeString()}] ${msg}`]);
     };
 
-    const fetchBalances = async () => {
+    const fetchBalances = React.useCallback(async () => {
         try {
+            if (!selectedNetwork) return;
             const res = await fetch(`/api/debug/balances?network=${selectedNetwork}`);
             const data = await res.json();
             setBalances(data);
         } catch (e) {
             console.error('Failed to fetch balances');
         }
-    };
+    }, [selectedNetwork]);
+
+    useEffect(() => {
+        fetchBalances();
+    }, [fetchBalances]);
 
     const connectWallet = async () => {
         if (!window.ethereum) return alert('Install MetaMask');
@@ -125,7 +126,7 @@ export default function FinalStreamTintPage() {
         setStep('processing');
         setError(null);
         setLogs([]);
-        addLog(`🚀 Starting TINT Protocol Lifecycle on ${selectedNetwork.toUpperCase()}...`);
+        addLog(`🚀 Starting TINT Protocol (Powered by Official V4) on ${selectedNetwork.toUpperCase()}...`);
         executeIntents();
     };
 
@@ -135,6 +136,54 @@ export default function FinalStreamTintPage() {
             const intent = parsedIntents[i];
 
             try {
+                if (intent.type === 'PAYMENT') {
+                    addLog(`💸 [Step 1] Processing Payment Intent...`);
+                    const isBridge = intent.fromChain !== intent.toChain;
+
+                    if (isBridge) {
+                        addLog(`🌉 Initiating Bridge from ${intent.fromChain} to ${intent.toChain}...`);
+                        const res = await fetch('/api/bridge/execute', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                fromChain: intent.fromChain,
+                                toChain: intent.toChain,
+                                amount: intent.amount,
+                                token: 'USDC', // Default to USDC for payments
+                                recipient: intent.recipient
+                            })
+                        });
+                        const data = await res.json();
+                        if (!data.success) throw new Error(data.error);
+                        addLog(`✅ Bridge Executed! Tx: ${data.txHash}`);
+                    } else {
+                        // Determine Token Type
+                        const isUSDC = intent.fromToken === 'USDC' || (prompt.includes('USDC') && !prompt.includes('ETH')) || intent.amount > 0.05;
+                        const tokenType = isUSDC ? 'USDC' : 'ETH';
+
+                        addLog(`💸 [Agent] Initiating ${tokenType} Transfer on ${selectedNetwork}...`);
+
+                        // Call Server API (Robust Agent Flow)
+                        const res = await fetch('/api/transfer', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                network: selectedNetwork,
+                                token: tokenType,
+                                amount: intent.amount,
+                                recipient: intent.recipient
+                            })
+                        });
+
+                        const data = await res.json();
+                        if (!data.success) throw new Error(data.error);
+
+                        addLog(`✅ Transfer Sent! Tx: ${data.txHash}`);
+                        addLog(`✅ Confirmed in Block: ${data.blockNumber}`);
+                    }
+                    continue; // Skip TINT logic
+                }
+
                 // 1. YELLOW NETWORK AUTH & CHANNEL (Missing Step Fixed)
                 addLog(`🔗 [Step 1] Opening Yellow Network State Channel...`);
                 const authRes = await fetch('/api/yellow/auth', {
@@ -261,8 +310,8 @@ export default function FinalStreamTintPage() {
                             key={net}
                             onClick={() => setSelectedNetwork(net)}
                             className={`px-4 py-2 rounded-full text-xs font-black uppercase transition-all border ${selectedNetwork === net
-                                    ? 'bg-cyan-500 text-black border-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.4)]'
-                                    : 'bg-gray-900/40 text-gray-500 border-gray-800 hover:border-gray-600'
+                                ? 'bg-cyan-500 text-black border-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.4)]'
+                                : 'bg-gray-900/40 text-gray-500 border-gray-800 hover:border-gray-600'
                                 }`}
                         >
                             {net} sepolia

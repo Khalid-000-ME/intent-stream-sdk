@@ -1,0 +1,54 @@
+const { spawn } = require("child_process");
+const path = require("path");
+require("dotenv").config({ path: "frontend/.env.local" });
+
+const SCRIPT_PATH = "script/AddWethLiquidity.s.sol";
+const PROJECT_ROOT = path.resolve(__dirname, "../../web3/uniswap");
+
+function runScript(networkName, rpcUrl) {
+    return new Promise((resolve, reject) => {
+        console.log(`\n🌊 Adding WETH Liquidity to ${networkName}...`);
+
+        const args = [
+            "script",
+            SCRIPT_PATH,
+            "--rpc-url", rpcUrl,
+            "--broadcast",
+            "--legacy", // Arbitrum sometimes needs legacy txs, safe for both
+            "-vvvv" // Verified output
+        ];
+
+        const child = spawn("forge", args, {
+            cwd: PROJECT_ROOT,
+            env: { ...process.env, FORCE_COLOR: true },
+            stdio: "inherit"
+        });
+
+        child.on("close", (code) => {
+            if (code === 0) {
+                console.log(`✅ ${networkName} Success!`);
+                resolve();
+            } else {
+                console.error(`❌ ${networkName} Failed (Exit ${code})`);
+                reject(new Error(`Exit ${code}`));
+            }
+        });
+    });
+}
+
+async function main() {
+    try {
+        // Base Sepolia
+        await runScript("Base Sepolia", "https://sepolia.base.org");
+
+        // Arbitrum Sepolia
+        await runScript("Arbitrum Sepolia", "https://sepolia-rollup.arbitrum.io/rpc");
+
+        console.log("\n🏁 Done. WETH Liquidity Added.");
+    } catch (e) {
+        console.error("Workflow failed:", e);
+        process.exit(1);
+    }
+}
+
+main();
