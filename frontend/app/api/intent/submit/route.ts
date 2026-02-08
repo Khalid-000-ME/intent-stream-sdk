@@ -251,11 +251,11 @@ async function runSubmitProcess(intentId: string) {
             if (poolManager) {
                 // Check Clam Balance of OUTPUT token
                 const claimBal = await poolManager.balanceOf(signer.address, outputAddress);
-                if (claimBal > 0n) {
+                if (claimBal > BigInt(0)) {
                     // We report the Total Claim Balance. Ideally should verify the *change*, but checking total is safer for demo if balance was 0.
                     // Or we could check claimBalBefore? For now, reporting current claim is informative enough.
                     const readableClaim = ethers.formatUnits(claimBal, outDecimals);
-                    if (receivedBigInt <= 0n) outputAmount = readableClaim; // If no ERC20 received, assume all went to claims
+                    if (receivedBigInt <= BigInt(0)) outputAmount = readableClaim; // If no ERC20 received, assume all went to claims
                     claimMsg = ` (Received as Claims: ${readableClaim} ${toToken})`;
                 }
             }
@@ -263,12 +263,12 @@ async function runSubmitProcess(intentId: string) {
             updateIntentStatus(intentId, 'executed', `Swap Success! Received ~${outputAmount} ${toToken}${claimMsg}`);
 
             // Warn if no ERC20 balance increase (likely dust or claims only)
-            if (receivedBigInt <= 0n) {
+            if (receivedBigInt <= BigInt(0)) {
                 updateIntentStatus(intentId, 'executed', `⚠️ Note: No ERC20 ${toToken} received (Check Claims or Low Liquidity)`);
             }
 
             // If we have ERC20 output, send it to recipient. (Claims currently stay in PoolManager)
-            if (recipient && receivedBigInt > 0n) {
+            if (recipient && receivedBigInt > BigInt(0)) {
                 updateIntentStatus(intentId, 'executing', `Sending ${outputAmount} ${toToken} to User (${recipient})...`);
                 try {
                     const sendTx = await outputContract.transfer(recipient, receivedBigInt, { gasLimit: 100000 });

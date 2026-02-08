@@ -3,7 +3,7 @@
 ## ✅ All Steps Executed
 
 ### 1. Smart Contract Deployment ✅
-**Contract**: TINTNettingVerifier  
+**Contract**: TINTHook  
 **Address**: `0x3837C39afF6A207C8B89fa9e4DAa45e3FBB35443`  
 **Network**: Ethereum Sepolia  
 **Tx Hash**: Check `/web3/uniswap/broadcast/DeployTINTVerifier.s.sol/11155111/run-latest.json`

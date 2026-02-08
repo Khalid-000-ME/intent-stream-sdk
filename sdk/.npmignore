@@ -1,0 +1,6 @@
+node_modules
+src
+tsconfig.json
+test-*.js
+.env.local
+.DS_Store
