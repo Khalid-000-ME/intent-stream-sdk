@@ -1,6 +1,6 @@
 {
   "name": "tint-protocol-ai-sdk",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "TINT Protocol SDK - Privacy-preserving intent netting with cryptographic commitments",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
