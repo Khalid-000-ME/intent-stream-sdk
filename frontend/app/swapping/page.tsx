@@ -86,7 +86,7 @@ export default function SwappingPage() {
     const startExecution = async () => {
         if (!account) {
             await connectWallet();
-            if (!account && !window.ethereum?.selectedAddress) return;
+            if (!account && !(window.ethereum as any)?.selectedAddress) return;
         }
 
         setStatus('executing');
@@ -446,8 +446,4 @@ export default function SwappingPage() {
     );
 }
 
-declare global {
-    interface Window {
-        ethereum: any;
-    }
-}
+

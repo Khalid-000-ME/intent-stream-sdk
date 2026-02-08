@@ -174,7 +174,18 @@ export default function FinalStreamTintPage() {
                     const isBridge = intent.fromChain !== intent.toChain;
 
                     if (isBridge) {
-                        addLog(`🌉 Initiating CLIENT-SIDE Bridge from ${intent.fromChain} to ${intent.toChain}...`);
+                        // Resolve chain names
+                        const CHAIN_MAP: { [key: string]: string } = {
+                            'base': 'Base_Sepolia',
+                            'arbitrum': 'Arbitrum_Sepolia',
+                            'ethereum': 'Ethereum_Sepolia',
+                            'sepolia': 'Ethereum_Sepolia',
+                            'optimism': 'Optimism_Sepolia'
+                        };
+                        const srcChain = CHAIN_MAP[intent.fromChain?.toLowerCase()] || intent.fromChain;
+                        const dstChain = CHAIN_MAP[intent.toChain?.toLowerCase()] || intent.toChain;
+
+                        addLog(`🌉 Initiating CLIENT-SIDE Bridge from ${srcChain} to ${dstChain}...`);
 
                         // New Client-Side Bridge Logic
                         const kit = new BridgeKit();
@@ -197,8 +208,8 @@ export default function FinalStreamTintPage() {
                         });
 
                         const result = await kit.bridge({
-                            from: { adapter, chain: intent.fromChain },
-                            to: { adapter, chain: intent.toChain },
+                            from: { adapter, chain: srcChain as any },
+                            to: { adapter, chain: dstChain as any },
                             amount: intent.amount.toString(),
                             token: 'USDC' // Enforce USDC for Circle Bridge
                         });
@@ -377,6 +388,22 @@ export default function FinalStreamTintPage() {
                     ))}
                 </div>
 
+                {/* Balances */}
+                <div className="bg-gray-900/40 border border-gray-800 p-6 rounded-3xl mb-8 flex justify-between items-center backdrop-blur-md">
+                    <div className="space-y-1">
+                        <div className="text-[10px] text-gray-500 uppercase font-bold tracking-widest text-cyan-400">Wallet Balance [{selectedNetwork.toUpperCase()} SEPOLIA]</div>
+                        <div className="text-2xl font-mono text-white">
+                            {balances && balances.balances ? `${Number(balances.balances.weth).toFixed(6)} WETH | ${Number(balances.balances.usdc).toFixed(2)} USDC` : 'Loading...'}
+                        </div>
+                    </div>
+                    <div className="text-right">
+                        <div className="text-[10px] text-gray-500 uppercase font-bold">Protocol Node</div>
+                        <div className="text-sm font-mono text-cyan-400">TINT-V1-{selectedNetwork.toUpperCase()}</div>
+                    </div>
+                </div>
+
+
+
                 {/* Main Grid */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
                     {/* Left: Input/Review */}
@@ -476,7 +503,7 @@ export default function FinalStreamTintPage() {
                         </div>
                     </div>
                 </div>
-            </main>
-        </div>
+            </main >
+        </div >
     );
 }
